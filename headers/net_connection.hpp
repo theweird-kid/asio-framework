@@ -76,6 +76,7 @@ namespace wkd
                         }
                     });
                 }
+                return true;
             }
 
             bool Disconnect()
@@ -186,7 +187,7 @@ namespace wkd
             // ASYNC - Prime context to write a message body
             void WriteBody()
             {
-                asio::async_write(m_socket, asio::buffer(m_msgTemporaryIn.front().body.data(), m_msgTemporaryIn.body.size()),
+                asio::async_write(m_socket, asio::buffer(m_qMessageOut.front().body.data(), m_qMessageOut.front().body.size()),
                 [this](std::error_code ec, std::size_t length)
                 {
                     if(!ec)
@@ -233,7 +234,7 @@ namespace wkd
 
             // holds all the messages that have been recieved from the remote side of this connection
             // NOTE: It is a reference as the "owner" of this connection is expected to provide a queue
-            thread_safe_queue<message<T>>& m_qMessageIn;
+            thread_safe_queue<owned_message<T>>& m_qMessageIn;
 
             // temporary incoming message buffer
             message<T> m_msgTemporaryIn;

@@ -6,6 +6,7 @@
 #include "net_message.hpp"
 #include "net_connection.hpp"
 #include <asio/io_context.hpp>
+#include <asio/ip/address.hpp>
 #include <cstdint>
 #include <exception>
 #include <memory>
@@ -19,6 +20,7 @@ namespace wkd
         class server_interface
         {
         public:
+
             server_interface(uint16_t port)
                 : m_asioAcceptor(m_asioContext, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
             {

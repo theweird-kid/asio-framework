@@ -91,6 +91,15 @@ namespace wkd
                     return false;
             }
 
+            // Send message to server
+            void Send(const message<T>& msg)
+            {
+                if(IsConnected())
+                {
+                    m_connection->Send(msg);
+                }
+            }
+
             // Retrieve queue of messages from server
             thread_safe_queue<owned_message<T>>& Incoming()
             {
