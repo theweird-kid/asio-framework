@@ -1,7 +1,7 @@
 #ifndef NET_SERVER_HPP
 #define NET_SERVER_HPP
 
-#include "net_common.hpp"
+//#include "net_common.hpp"
 #include "net_thread_safe_queue.hpp"
 #include "net_message.hpp"
 #include "net_connection.hpp"
@@ -83,7 +83,7 @@ namespace wkd
                                 // Connection allowed, add to the contianer of new connection
                                 m_deqConnections.push_back(std::move(newconn));
                                 // Assign ID to connections
-                                m_deqConnections.back()->ConnectToClient(nIDCounter++);
+                                m_deqConnections.back()->ConnectToClient(this, nIDCounter++);
 
                                 std::cout << "[" << m_deqConnections.back()->GetID() << "] Connection Approved\n";
                             }
@@ -182,6 +182,13 @@ namespace wkd
             virtual void OnMessage(std::shared_ptr<connection<T>> client, message<T>& msg)
             {
 
+            }
+
+        public:
+            // Called when the client is validated
+            void OnClientValidated(std::shared_ptr<connection<T>> client)
+            {
+                OnClientConnect(client);
             }
 
         protected:

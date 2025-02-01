@@ -39,15 +39,12 @@ int main()
     CustomClient c;
     c.Connect("127.0.0.1", 60000);
 
-    auto &incoming_messages = c.Incoming();
-
-    while(1)
+    while(c.IsConnected())
     {
-        if(!c.IsConnected()) break;
-        c.PingServer();
-        c.MessageAll();
-        while(!incoming_messages.empty()) {
-            auto msg = incoming_messages.pop_front().msg;
+        //c.PingServer();
+        //c.MessageAll();
+        while(!c.Incoming().empty()) {
+            auto msg = c.Incoming().pop_front().msg;
             switch(msg.header.id)
             {
                 case CustomMsgTypes::ServerAccept:

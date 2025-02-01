@@ -34,6 +34,7 @@ namespace wkd
             // Adds an item to the back of the queue
             void push_back(const T& item)
             {
+                // Push Element to the back of the queue
                 std::scoped_lock lock(muxQueue);
                 m_Deque.emplace_back(std::move(item));
 
@@ -45,6 +46,7 @@ namespace wkd
             // Adds an item to front of the queue
             void push_front(const T& item)
             {
+                // Push Element to the front of the queue
                 std::scoped_lock lock(muxQueue);
                 m_Deque.emplace_front(std::move(item));
 

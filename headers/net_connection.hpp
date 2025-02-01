@@ -2,6 +2,7 @@
 #define NET_CONNECTION_HPP
 
 #include "net_common.hpp"
+#include "net_server.hpp"
 #include "net_thread_safe_queue.hpp"
 #include "net_message.hpp"
 #include <asio/impl/read.hpp>
@@ -16,6 +17,10 @@ namespace wkd
 {
     namespace net
     {
+        // Forward declare
+        template<typename T>
+        class server_interface;
+
         template <typename T>
         class connection : public std::enable_shared_from_this<connection<T>>
         {
@@ -34,6 +39,21 @@ namespace wkd
             : m_asioContext(asioContext), m_socket(std::move(socket)), m_qMessageIn(qIn)
             {
                 m_nOwnerType = parent;
+
+                // Construct validation check data
+                if(m_nOwnerType == owner::server)
+                {
+                    // Server -> Client Connection, constructing random data
+                    m_nHandshakeOut = uint64_t(std::chrono::system_clock::now().time_since_epoch().count());
+                    // Precompute the scrambled data for checking
+                    m_nHandshakeCheck = Scramble(m_nHandshakeOut);
+                }
+                else
+                {
+                    // Client -> Server Connection
+                    m_nHandshakeIn = 0;
+                    m_nHandshakeOut = 0;
+                }
             }
 
             // Destructor
@@ -48,14 +68,17 @@ namespace wkd
         public:
 
             // Connect to client (Only Applicable for Servers)
-            void ConnectToClient(uint32_t uid = 0)
+            void ConnectToClient(wkd::net::server_interface<T>* server, uint32_t uid = 0)
             {
                 if(m_nOwnerType == owner::server)
                 {
                     if(m_socket.is_open())
                     {
                         m_id = uid;
-                        ReadHeader();
+                        // Client attempts to connect to server, Validate the connection
+                        WriteValidation();
+                        // Issue an asynchronus task and wait for the client to respond to the validation
+                        ReadValidation(server);
                     }
                 }
             }
@@ -72,7 +95,8 @@ namespace wkd
                     {
                         if(!ec)
                         {
-                            ReadHeader();
+                            // Verify the authenticity of the client
+                            ReadValidation();
                         }
                     });
                 }
@@ -222,6 +246,79 @@ namespace wkd
                 ReadHeader();
             }
 
+            // "Encrypt" fata
+            uint64_t Scramble(uint64_t nInput)
+            {
+                uint64_t out = nInput ^ 0xDEADBEEFC0DECAFE;
+                out = (out & 0xF0F0F0F0F0) >> 4 | (out & 0x0F0F0F0F0F0F) << 4;
+                return out ^ 0xC0DEFACE12345678;
+            }
+
+            // ASYNC - Write Validation Packet, used by both client and server
+            void WriteValidation()
+            {
+                asio::async_write(m_socket, asio::buffer(&m_nHandshakeOut, sizeof(uint64_t)),
+                    [this](std::error_code ec, std::size_t length)
+                    {
+                        if(!ec)
+                        {
+                            // Validation data sent, wait for a response
+                            if(m_nOwnerType == owner::client)
+                            {
+                                ReadHeader();
+                            }
+                        }
+                        else
+                        {
+                            m_socket.close();
+                        }
+                    });
+            }
+
+            // ASYNC - Read Validation Packet, used by server
+            void ReadValidation(wkd::net::server_interface<T>* server = nullptr)
+            {
+                asio::async_read(m_socket, asio::buffer(&m_nHandshakeIn, sizeof(uint64_t)),
+                    [this, server](std::error_code ec, std::size_t length)
+                    {
+                        if(!ec)
+                        {
+                            if(m_nOwnerType == owner::server)
+                            {
+                                // Connection is from server
+                                if(m_nHandshakeIn == m_nHandshakeCheck)
+                                {
+                                    // Client has solved the validation challenge
+                                    std::cout << "[SERVER] Client Validated" << std::endl;
+                                    server->OnClientValidated(this->shared_from_this());
+
+                                    // Connection is now validated, so start reading messages
+                                    ReadHeader();
+                                }
+                                else
+                                {
+                                    // Client validation failed
+                                    std::cout << "[SERVER] Client Disconnected (Fail Validation)" << std::endl;
+                                    m_socket.close();
+                                }
+                            }
+                            else
+                            {
+                                // Connection is Client, so solve the validation
+                                m_nHandshakeOut = Scramble(m_nHandshakeIn);
+                                // Write the result
+                                WriteValidation();
+                            }
+                        }
+                        else
+                        {
+                            // Terminate the connection
+                            std::cout << "[CLIENT DISCONNECTED] Read Validation Failed: " << ec.message() << std::endl;
+                            m_socket.close();
+                        }
+                    });
+            }
+
         protected:
             // each connection has a unique socket to remote
             asio::ip::tcp::socket m_socket;
@@ -243,6 +340,11 @@ namespace wkd
             owner m_nOwnerType = owner::server;
             // Identifier
             uint32_t m_id = 0;
+
+            // Handshake Validation
+            uint64_t m_nHandshakeOut = 0;
+            uint64_t m_nHandshakeIn = 0;
+            uint64_t m_nHandshakeCheck = 0;
         };
     }
 }
