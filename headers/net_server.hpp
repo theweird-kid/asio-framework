@@ -1,12 +1,11 @@
 #ifndef NET_SERVER_HPP
 #define NET_SERVER_HPP
 
-//#include "net_common.hpp"
+#include "net_common.hpp"
 #include "net_thread_safe_queue.hpp"
 #include "net_message.hpp"
 #include "net_connection.hpp"
-#include <asio/io_context.hpp>
-#include <asio/ip/address.hpp>
+
 #include <cstdint>
 #include <exception>
 #include <memory>
@@ -149,6 +148,7 @@ namespace wkd
                 }
             }
 
+            // Force server to respond to incoming messages
             void Update(size_t nMaxMessages = -1, bool bWait = false)
             {
                 // Optimize CPU Utilization
@@ -159,6 +159,7 @@ namespace wkd
                 {
                     // extract the owned message
                     auto msg = m_qMessageIn.pop_front();
+
                     // Pass it on to message handler
                     OnMessage(msg.remote, msg.msg);
                     nMessageCount++;
@@ -186,9 +187,9 @@ namespace wkd
 
         public:
             // Called when the client is validated
-            void OnClientValidated(std::shared_ptr<connection<T>> client)
+            virtual void OnClientValidated(std::shared_ptr<connection<T>> client)
             {
-                OnClientConnect(client);
+
             }
 
         protected:

@@ -2,7 +2,6 @@
 #define NET_MESSAGE_HPP
 
 #include "net_common.hpp"
-#include <ostream>
 
 namespace wkd
 {
@@ -14,9 +13,12 @@ namespace wkd
         struct message_header
         {
             T id{};
-            uint32_t size{0};
+            uint32_t size = 0;
         };
 
+        // Message Body contains a header and a std::vector, containing raw bytes
+		// of infomation. This way the message can be variable length, but the size
+		// in the header must be updated.
         template <typename T>
         struct message
         {
@@ -26,14 +28,21 @@ namespace wkd
             // returns the size of entire message packet in bytes
             size_t size() const
             {
-                return sizeof(message_header<T>) + body.size();
+                return body.size();
             }
 
             // Override for std::cout compatibility - produces friendly description of message
             friend std::ostream& operator << (std::ostream& os, const message<T>& msg)
             {
-                os << "ID: " << int(msg.header.id) << " Size: " << msg.header.size();
+                os << "ID: " << int(msg.header.id) << " Size: " << msg.header.size;
+                return os;
             }
+
+            // Convenience Operator overloads - These allow us to add and remove stuff from
+			// the body vector as if it were a stack, so First in, Last Out. These are a
+			// template in itself, because we dont know what data type the user is pushing or
+			// popping, so lets allow them all. NOTE: It assumes the data type is fundamentally
+			// Plain Old Data (POD). TLDR: Serialise & Deserialise into/from a vector
 
             // Pushes data into the message buffer
             template <typename DataType>
@@ -62,29 +71,33 @@ namespace wkd
             template <typename DataType>
             friend message<T>& operator >> (message<T>& msg, DataType& data)
             {
-                // Check that the type of data being extracted is trivially copyable
-                static_assert(std::is_standard_layout<DataType>::value, "Data is too complex to be extracted from vector");
+                // Check that the type of the data being pushed is trivially copyable
+				static_assert(std::is_standard_layout<DataType>::value, "Data is too complex to be pulled from vector");
 
-                // Cache the location towards the end of the vector where the pulled data starts
-                size_t i = msg.body.size() - sizeof(DataType);
+				// Cache the location towards the end of the vector where the pulled data starts
+				size_t i = msg.body.size() - sizeof(DataType);
 
-                // Physically copy the data from the vector into the user variable
-                std::memcpy(&data, msg.body.data() + i, sizeof(DataType));
+				// Physically copy the data from the vector into the user variable
+				std::memcpy(&data, msg.body.data() + i, sizeof(DataType));
 
-                // Shrink the vector to remove read bytes, and reset end position
-                msg.body.resize(i);
+				// Shrink the vector to remove read bytes, and reset end position
+				msg.body.resize(i);
 
-                // Recalculate the message size
-                msg.header.size = msg.size();
+				// Recalculate the message size
+				msg.header.size = msg.size();
 
-                // Return the target message so it can be "chained"
-                return msg;
+				// Return the target message so it can be "chained"
+				return msg;
             }
         };
 
         // Forward declare the connection type
         template <typename T>
         class connection;
+
+        // An "owned" message is identical to a regular message, but it is associated with
+		// a connection. On a server, the owner would be the client that sent the message,
+		// on a client the owner would be the server.
 
         template <typename T>
         struct owned_message

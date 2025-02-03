@@ -2,11 +2,6 @@
 #define NET_CLIENT_HPP
 
 #include "net_common.hpp"
-#include "net_message.hpp"
-#include "net_thread_safe_queue.hpp"
-#include "net_connection.hpp"
-#include <exception>
-#include <string>
 
 namespace wkd
 {
@@ -17,7 +12,7 @@ namespace wkd
         {
         public:
             // Constructor
-            client_interface() : m_socket(m_context)
+            client_interface()
             {
                 // Initialize the socket with the io context, so it can do stuff
             }
@@ -111,8 +106,6 @@ namespace wkd
             asio::io_context m_context;
             // ...but needs a thread of its own to execute work commands
             std::thread thrContext;
-            // this is the hardware socket that is connected to the server
-            asio::ip::tcp::socket m_socket;
             // the client has a single instance of a "connection" object, which handles data transfer
             std::unique_ptr<connection<T>> m_connection;
 

@@ -2,16 +2,8 @@
 #define NET_CONNECTION_HPP
 
 #include "net_common.hpp"
-#include "net_server.hpp"
 #include "net_thread_safe_queue.hpp"
 #include "net_message.hpp"
-#include <asio/impl/read.hpp>
-#include <asio/impl/write.hpp>
-#include <asio/io_context.hpp>
-#include <asio/ip/tcp.hpp>
-#include <cstdint>
-#include <memory>
-#include <system_error>
 
 namespace wkd
 {
@@ -33,10 +25,10 @@ namespace wkd
                 client
             };
 
-            // Constructor
-            connection(owner parent, asio::io_context& asioContext, asio::ip::tcp::socket socket,
-                thread_safe_queue<owned_message<T>>& qIn)
-            : m_asioContext(asioContext), m_socket(std::move(socket)), m_qMessageIn(qIn)
+            // Constructor: Specify Owner, connect to context, transfer the socket
+			//				Provide reference to incoming message queue
+            connection(owner parent, asio::io_context& asioContext, asio::ip::tcp::socket socket, thread_safe_queue<owned_message<T>>& qIn)
+                : m_asioContext(asioContext), m_socket(std::move(socket)), m_qMessageIn(qIn)
             {
                 m_nOwnerType = parent;
 
@@ -45,6 +37,7 @@ namespace wkd
                 {
                     // Server -> Client Connection, constructing random data
                     m_nHandshakeOut = uint64_t(std::chrono::system_clock::now().time_since_epoch().count());
+
                     // Precompute the scrambled data for checking
                     m_nHandshakeCheck = Scramble(m_nHandshakeOut);
                 }
@@ -77,6 +70,7 @@ namespace wkd
                         m_id = uid;
                         // Client attempts to connect to server, Validate the connection
                         WriteValidation();
+
                         // Issue an asynchronus task and wait for the client to respond to the validation
                         ReadValidation(server);
                     }
@@ -84,7 +78,7 @@ namespace wkd
             }
 
             // Connect to server
-            bool ConnectToServer(const asio::ip::tcp::resolver::results_type& endpoints)
+            void ConnectToServer(const asio::ip::tcp::resolver::results_type& endpoints)
             {
                 // Only clients can connect to servers
                 if(m_nOwnerType == owner::client)
@@ -100,17 +94,14 @@ namespace wkd
                         }
                     });
                 }
-                return true;
             }
 
-            bool Disconnect()
+            void Disconnect()
             {
                 if(IsConnected())
                 {
                     asio::post(m_asioContext, [this]() { m_socket.close(); });
-                    return true;
                 }
-                return false;
             }
 
             // retuns true if connected
@@ -119,7 +110,8 @@ namespace wkd
                 return m_socket.is_open();
             }
 
-            // Sends msg back to remote
+            // ASYNC - Send a message, connections are one-to-one so no need to specifiy
+			// the target, for a client, the target is the server and vice versa
             void Send(const message<T>& msg)
             {
                 asio::post(m_asioContext,
@@ -250,8 +242,8 @@ namespace wkd
             uint64_t Scramble(uint64_t nInput)
             {
                 uint64_t out = nInput ^ 0xDEADBEEFC0DECAFE;
-                out = (out & 0xF0F0F0F0F0) >> 4 | (out & 0x0F0F0F0F0F0F) << 4;
-                return out ^ 0xC0DEFACE12345678;
+				out = (out & 0xF0F0F0F0F0F0F0) >> 4 | (out & 0x0F0F0F0F0F0F0F) << 4;
+				return out ^ 0xC0DEFACE12345678;
             }
 
             // ASYNC - Write Validation Packet, used by both client and server

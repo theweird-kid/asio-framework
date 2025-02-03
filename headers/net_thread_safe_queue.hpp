@@ -2,8 +2,6 @@
 #define NET_THREAD_SAFE_QUEUE_HPP
 
 #include "net_common.hpp"
-#include <condition_variable>
-#include <mutex>
 
 namespace wkd
 {
@@ -29,6 +27,24 @@ namespace wkd
             {
                 std::scoped_lock lock(muxQueue);
                 return m_Deque.back();
+            }
+
+            // removes and returns the item at the front
+            T pop_front()
+            {
+                std::scoped_lock lock(muxQueue);
+                auto t = std::move(m_Deque.front());
+                m_Deque.pop_front();
+                return t;
+            }
+
+            // removes and returns the item at the back
+            T pop_back()
+            {
+                std::scoped_lock lock(muxQueue);
+                auto t = std::move(m_Deque.back());
+                m_Deque.pop_back();
+                return t;
             }
 
             // Adds an item to the back of the queue
@@ -74,24 +90,6 @@ namespace wkd
             {
                 std::scoped_lock lock(muxQueue);
                 m_Deque.clear();
-            }
-
-            // removes and returns the item at the front
-            T pop_front()
-            {
-                std::scoped_lock lock(muxQueue);
-                auto t = std::move(m_Deque.front());
-                m_Deque.pop_front();
-                return t;
-            }
-
-            // removes and returns the item at the back
-            T pop_back()
-            {
-                std::scoped_lock lock(muxQueue);
-                auto t = std::move(m_Deque.back());
-                m_Deque.pop_back();
-                return t;
             }
 
             void wait()
