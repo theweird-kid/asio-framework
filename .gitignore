@@ -1,0 +1,5 @@
+# Ignore src/client directory
+src/client/
+
+# Ignore src/server directory
+src/server/

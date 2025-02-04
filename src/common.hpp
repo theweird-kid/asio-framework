@@ -1,5 +1,7 @@
 #include "../headers/net.hpp"
+#include <array>
 #include <cstdint>
+#include <vector>
 
 enum class GameMsg : uint32_t
 {
@@ -86,31 +88,17 @@ enum class MessageType
     Command,
 };
 
-struct NetworkMessage
-{
-    MessageType type; // Type of the message
-    uint32_t size;    // Size of the message body
-    std::vector<uint8_t> body; // Message body containing raw bytes
-
-    // Constructor to initialize the message
-    NetworkMessage(MessageType t = MessageType::Text, uint32_t s = 0)
-        : type(t), size(s) {}
-
-    // Function to set the body and update the size
-    void setBody(const std::vector<uint8_t>& data)
-    {
-        body = data;
-        size = static_cast<uint32_t>(body.size());
-    }
-
-    // Function to get the size of the entire message
-    size_t getSize() const
-    {
-        return sizeof(type) + sizeof(size) + body.size();
-    }
-};
-
 struct sMessageType
 {
-	char data[1024];
+    uint32_t nID;
+    uint32_t nSize;
+    uint32_t nType;
+    std::array<uint8_t, 1024> data;
+
+    void copyToServerBuffer(wkd::net::message<GameMsg>& msg, const std::string& message) {
+        this->nSize = message.size();
+        this->nType = 1;
+        std::memcpy(data.data(), message.data(), message.size());
+        msg << *this;
+    }
 };

@@ -42,12 +42,10 @@ protected:
             std::cout << "[" << client->GetID() << "]: " << msg << std::endl;
 
             // Extract the NetworkMessage from the received message
-            NetworkMessage netMsg;
+            sMessageType netMsg;
             msg >> netMsg;
 
-            // Convert the body back into a string
-            std::string clientMessage(netMsg.body.begin(), netMsg.body.end());
-
+            std::string clientMessage{netMsg.data.begin(), netMsg.data.begin() + netMsg.nSize};
             std::cout << "Received message from client: " << clientMessage << std::endl;
 		}
 		break;

@@ -67,7 +67,7 @@ namespace wkd
                 return msg;
             }
 
-            // Extract data from the vector
+            // Extract data from the message buffer
             template <typename DataType>
             friend message<T>& operator >> (message<T>& msg, DataType& data)
             {
@@ -89,6 +89,7 @@ namespace wkd
 				// Return the target message so it can be "chained"
 				return msg;
             }
+
         };
 
         // Forward declare the connection type

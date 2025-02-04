@@ -1,4 +1,6 @@
 #include "common.hpp"
+#include <cstddef>
+#include <cstring>
 #include <iostream>
 #include <thread>
 
@@ -10,15 +12,8 @@ public:
         wkd::net::message<GameMsg> msg;
         msg.header.id = GameMsg::Server_Message;
 
-        // Convert the string into a vector of bytes
-        std::vector<uint8_t> bodyData(message.begin(), message.end());
-
-        // Create a NetworkMessage and set its body
-        NetworkMessage netMsg(MessageType::Text);
-        netMsg.setBody(bodyData);
-
-        // Push the NetworkMessage into the message body
-        msg << netMsg;
+        sMessageType netMsg;
+        netMsg.copyToServerBuffer(msg, message);
         Send(msg);
     }
 
